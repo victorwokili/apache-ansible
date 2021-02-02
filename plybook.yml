@@ -1,0 +1,71 @@
+---
+- name: This sets up an httpd webserver
+  hosts: all
+  tasks:
+  - include_vars: vars.yml
+
+  - name: "Uninstall HTTPD/Apache"
+    tags: uninstall_apache
+    yum:
+      name: httpd
+      autoremove: yes
+      state: absent
+
+  - name: Delete www folder if exist 
+    file:
+      path: "/var/www/html"
+      state: absent
+
+  - name: Install apache packages 
+    yum:
+      name: httpd
+      state: present
+  - name: ensure httpd is running
+    service:
+      name: httpd 
+      state: started
+  - name: Open port 80 for http access
+    firewalld:
+      service: http
+      permanent: true
+      state: enabled
+
+  - name: Restart the firewalld service to load in the firewall changes
+    service: 
+      name: firewalld 
+      state: restarted
+
+  - name: apache2 listen on port "{{ expose_port }}"
+    lineinfile: dest=/etc/httpd/conf/httpd.conf regexp="^Listen 80" line="Listen {{ expose_port }}" state=present
+
+  - name: Create document root
+    file:
+      path: "/var/www/html"
+      state: directory
+      owner: "root"
+      mode: '0755'
+
+  - name: touch index.html file 
+    file:
+      path: /var/www/html/index.html
+      state: touch
+
+  - name: create index.html file 
+    blockinfile:
+      path: /var/www/html/index.html
+      marker: ""
+      block: |
+       <!DOCTYPE html>
+       <html>
+           <head>
+               <title>Hello World</title>
+           </head>
+           <body>
+               <p>This is an example of a simple HTML page with one paragraph.</p>
+           </body>
+       </html>
+
+  - name: Restart the httpd
+    service: 
+      name: httpd 
+      state: restarted
